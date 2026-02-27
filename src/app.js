@@ -14,8 +14,8 @@ export function createApp() {
 
   app.use(cors({
     origin: [
-      "http://localhost:5173",
-      "https://dainty-genie-f95ae5.netlify.app/"
+      'http://localhost:5173',
+      'https://dainty-genie-f95ae5.netlify.app'
     ],
     credentials: true
   }));
