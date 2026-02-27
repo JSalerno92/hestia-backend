@@ -12,7 +12,13 @@ import servicesRoutes from './routes/services.js';
 export function createApp() {
   const app = express();
 
-  app.use(cors());
+  app.use(cors({
+    origin: [
+      "http://localhost:5173",
+      "https://dainty-genie-f95ae5.netlify.app/"
+    ],
+    credentials: true
+  }));
   app.use(express.json());
   app.use(morgan('dev'));
 

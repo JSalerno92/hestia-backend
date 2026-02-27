@@ -9,8 +9,7 @@ export async function seedServices(pool) {
               	Limpieza de horno, alacenas de cocina, vidrios.
               	Colgado, doblado/planchado de ropa.
               	Exteriores.
-              VALOR: 60.000 
-              AL ELEGIR EL DIA SE ABREN LOS HORARIOS DISPONIBLES - AL HACER CLICK  SALTA EL POP UP CON LOS DATOS A COMPLETAR Y HACER CLICK EN LA PALABRA “RESERVA” PARA CONCRETARLA
+              VALOR: 60.000
               `,
       ui_color: '#8dc0af',
       duration_minutes: 240,
@@ -30,7 +29,6 @@ export async function seedServices(pool) {
               	Colgado, doblado/planchado de ropa.
               	Exteriores.
               VALOR: 75.000
-              AL ELEGIR EL DIA SE ABREN LOS HORARIOS DISPONIBLES - AL HACER CLICK  SALTA EL POP UP CON LOS DATOS A COMPLETAR Y HACER CLICK EN LA PALABRA “RESERVA” PARA CONCRETARLA
               `,
       ui_color: '#6f9a86',
       duration_minutes: 300,
@@ -49,7 +47,6 @@ export async function seedServices(pool) {
               	Ventanas y vidrios.
               	Exteriores.
               VALOR: 120.000
-              AL ELEGIR EL DIA SE ABREN LOS HORARIOS DISPONIBLES - AL HACER CLICK  SALTA EL POP UP CON LOS DATOS A COMPLETAR Y HACER CLICK EN LA PALABRA “RESERVA” PARA CONCRETARLA
               `,
       ui_color: '#628580',
       duration_minutes: 360,
