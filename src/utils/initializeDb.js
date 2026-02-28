@@ -7,6 +7,28 @@ export async function initializeDatabase(pool) {
     console.log('🟢 Initializing database schema...');
 
     await client.query('BEGIN');
+    
+    // ---- SERVICES ----
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS services (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        short_label VARCHAR(50),
+        description TEXT,
+        info TEXT,
+        ui_color VARCHAR(7) NOT NULL,
+        display_order INT NOT NULL,
+        requires_form BOOLEAN NOT NULL DEFAULT false,
+        service_group VARCHAR(50) NOT NULL,
+        duration_minutes INT NULL,
+        scheduling_type TEXT NOT NULL DEFAULT 'fixed_block',
+        form_id INT REFERENCES forms(id),
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP DEFAULT now(),
+        updated_at TIMESTAMP DEFAULT now()
+      );
+    `);
 
     // ---- FORMS PARA SERVICES ----
     await client.query(`      
@@ -47,28 +69,6 @@ export async function initializeDatabase(pool) {
         status TEXT DEFAULT 'confirmed',
         created_at TIMESTAMPTZ DEFAULT now(),
         UNIQUE(service_id, date, time_slot)
-      );
-    `);
-    
-    // ---- SERVICES ----
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS services (
-        id SERIAL PRIMARY KEY,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        name VARCHAR(100) NOT NULL,
-        short_label VARCHAR(50),
-        description TEXT,
-        info TEXT,
-        ui_color VARCHAR(7) NOT NULL,
-        display_order INT NOT NULL,
-        requires_form BOOLEAN NOT NULL DEFAULT false,
-        service_group VARCHAR(50) NOT NULL,
-        duration_minutes INT NULL,
-        scheduling_type TEXT NOT NULL DEFAULT 'fixed_block',
-        form_id INT REFERENCES forms(id),
-        active BOOLEAN NOT NULL DEFAULT true,
-        created_at TIMESTAMP DEFAULT now(),
-        updated_at TIMESTAMP DEFAULT now()
       );
     `);
 
