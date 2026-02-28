@@ -15,7 +15,9 @@ export function createApp() {
   app.use(cors({
     origin: [
       'http://localhost:5173',
-      'https://dainty-genie-f95ae5.netlify.app'
+      'https://dainty-genie-f95ae5.netlify.app',
+      'https://casahestia.com.ar',
+      'https://www.casahestia.com.ar'
     ],
     credentials: true
   }));
