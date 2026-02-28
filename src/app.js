@@ -8,6 +8,7 @@ import formsRoutes from './routes/forms.js';
 import serviceRequestsRoutes from './routes/serviceRequests.js';
 import pool from './db/index.js';
 import servicesRoutes from './routes/services.js';
+import bookingRoute from './routes/bookings.js';
 
 export function createApp() {
   const app = express();
@@ -30,6 +31,7 @@ export function createApp() {
   app.use('/api/forms', formsRoutes(pool));
   app.use('/api/service-requests', serviceRequestsRoutes(pool));
   app.use('/api/services', servicesRoutes(pool));
+  app.use('/api/bookings', bookingRoute);
 
   app.get('/health', (_, res) => {
     res.json({ status: 'ok' });
