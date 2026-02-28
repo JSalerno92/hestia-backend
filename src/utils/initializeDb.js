@@ -7,6 +7,10 @@ export async function initializeDatabase(pool) {
     console.log('🟢 Initializing database schema...');
 
     await client.query('BEGIN');
+    
+    await client.query(`
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+  `);
 
     // ---- FORMS PARA SERVICES ----
     await client.query(`      
@@ -19,7 +23,7 @@ export async function initializeDatabase(pool) {
         created_at TIMESTAMP DEFAULT now()
       );
     `);
-    
+
     // ---- SERVICES ----
     await client.query(`
       CREATE TABLE IF NOT EXISTS services (
