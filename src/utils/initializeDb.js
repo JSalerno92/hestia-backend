@@ -7,6 +7,18 @@ export async function initializeDatabase(pool) {
     console.log('🟢 Initializing database schema...');
 
     await client.query('BEGIN');
+
+    // ---- FORMS PARA SERVICES ----
+    await client.query(`      
+      CREATE TABLE IF NOT EXISTS forms (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP DEFAULT now()
+      );
+    `);
     
     // ---- SERVICES ----
     await client.query(`
@@ -27,18 +39,6 @@ export async function initializeDatabase(pool) {
         active BOOLEAN NOT NULL DEFAULT true,
         created_at TIMESTAMP DEFAULT now(),
         updated_at TIMESTAMP DEFAULT now()
-      );
-    `);
-
-    // ---- FORMS PARA SERVICES ----
-    await client.query(`      
-      CREATE TABLE IF NOT EXISTS forms (
-        id SERIAL PRIMARY KEY,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        name VARCHAR(100) NOT NULL,
-        description TEXT,
-        active BOOLEAN NOT NULL DEFAULT true,
-        created_at TIMESTAMP DEFAULT now()
       );
     `);
 
