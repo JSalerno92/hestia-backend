@@ -1,26 +1,28 @@
-/* import pkg from 'pg';
-import { config } from '../config/env.js';
-
-const { Pool } = pkg;
-
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
-
-export default pool;
- */
 import pkg from 'pg';
-import { config } from '../config/env.js';
 
 const { Pool } = pkg;
 
-const pool = new Pool({
-  connectionString: config.databaseUrl,
-  ssl: { rejectUnauthorized: false }
-});
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Detecta si existe DATABASE_URL
+const hasConnectionString = !!process.env.DATABASE_URL;
+
+const pool = new Pool(
+  hasConnectionString
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: isProduction
+          ? { rejectUnauthorized: false }
+          : false
+      }
+    : {
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: process.env.DB_PORT,
+        ssl: false
+      }
+);
 
 export default pool;
