@@ -64,7 +64,7 @@ export default function servicesRoutes(pool) {
 
     try {
       const serviceRes = await pool.query(
-        'SELECT scheduling_type FROM services WHERE id = $1',
+        'SELECT scheduling_type, duration_minutes FROM services WHERE id = $1',
         [id]
       );
 
@@ -72,7 +72,9 @@ export default function servicesRoutes(pool) {
         return res.status(404).json({ error: 'Servicio no encontrado' });
       }
 
-      if (serviceRes.rows[0].scheduling_type !== 'fixed_block') {
+      const service = serviceRes.rows[0];
+
+      if (service.scheduling_type !== 'fixed_block') {
         return res.json({ days: [] });
       }
 
@@ -127,7 +129,10 @@ export default function servicesRoutes(pool) {
         slots: grouped[date]
       }));
 
-      res.json({ days });
+      res.json({
+        duration_minutes: service.duration_minutes,
+        days
+      });
 
     } catch (err) {
       console.error('Availability error:', err);

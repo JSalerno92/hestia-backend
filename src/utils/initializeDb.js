@@ -7,7 +7,7 @@ export async function initializeDatabase(pool) {
     console.log('🟢 Initializing database schema...');
 
     await client.query('BEGIN');
-    
+
     await client.query(`
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
   `);
@@ -141,6 +141,40 @@ export async function initializeDatabase(pool) {
         active BOOLEAN NOT NULL DEFAULT true,
         created_at TIMESTAMP NOT NULL DEFAULT now(),
         updated_at TIMESTAMP NOT NULL DEFAULT now()
+      );
+    `);
+
+    // ---- SERVICE PROVIDERS ----
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS service_providers (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(120) NOT NULL,
+        phone VARCHAR(50),
+        notes TEXT,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP DEFAULT now(),
+        updated_at TIMESTAMP DEFAULT now()
+      );
+    `);
+
+    // ---- RELATION SERVICE PROVIDER SERVICES
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS service_provider_services (
+        id SERIAL PRIMARY KEY,
+        provider_id INT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
+        service_id INT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        UNIQUE(provider_id, service_id)
+      );
+    `);
+
+    // ---- Para casos de enfermedad, vacaciones, etc.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS provider_unavailability (
+        id SERIAL PRIMARY KEY,
+        provider_id INT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
+        date_from DATE NOT NULL,
+        date_to DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT now()
       );
     `);
 
