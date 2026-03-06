@@ -1,13 +1,12 @@
 import express from "express";
-import pool from "../db.js";
-import { requireBackofficeAuth } from "../middleware/authBackoffice.js";
+import pool from '../db/index.js';
 
 const router = express.Router();
 
 /**
  * Suspender prestadora
  */
-router.post("/:id/suspend", requireBackofficeAuth, async (req, res) => {
+router.post("/:id/suspend", async (req, res) => {
   const providerId = req.params.id;
   const { date_from, date_to } = req.body;
 
@@ -100,7 +99,7 @@ router.post("/:id/suspend", requireBackofficeAuth, async (req, res) => {
     client.release();
   }
 });
-router.post("/:id/reactivate", requireBackofficeAuth, async (req, res) => {
+router.post("/:id/reactivate", async (req, res) => {
   const providerId = req.params.id;
   const { date_from, date_to } = req.body;
 

@@ -178,6 +178,18 @@ export async function initializeDatabase(pool) {
       );
     `);
 
+    // ---- BACKOFFICE ----
+
+    // ---- ADMIN
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+
     await client.query('COMMIT');
 
     await runSeeds(pool);

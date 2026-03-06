@@ -2,3 +2,4 @@
 node_modules
 old-index.js
 src/db/old-index.js
+src/routes/old-admin.availability.routes.js

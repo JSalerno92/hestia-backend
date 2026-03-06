@@ -1,246 +1,369 @@
 import express from "express";
-import pool from "../db.js";
-import { requireBackofficeAuth } from "../middleware/authBackoffice.js";
+import pool from '../db/index.js';
 
 const router = express.Router();
 
-const MAX_RANGE_DAYS = 365;
+/* ----------------------------------------------------- */
+/* Helpers */
+/* ----------------------------------------------------- */
 
-/* =========================
-   Helpers
-========================= */
-
-function parseDate(str) {
-  return new Date(str + "T00:00:00");
-}
-
-function formatDate(date) {
-  return date.toISOString().split("T")[0];
-}
-
-function addMinutes(timeStr, minutesToAdd) {
-  const [h, m] = timeStr.split(":").map(Number);
-  const total = h * 60 + m + minutesToAdd;
-  const newH = Math.floor(total / 60);
-  const newM = total % 60;
-  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
-}
-
-function timeToMinutes(t) {
-  const [h, m] = t.split(":").map(Number);
+function timeToMinutes(time) {
+  const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 }
 
-function getSlotsForDay(startTime, endTime, durationMinutes) {
-  const slots = [];
-  let current = startTime;
+function formatDate(date) {
+  return date.toISOString().split('T')[0];
+}
 
-  while (timeToMinutes(current) + durationMinutes <= timeToMinutes(endTime)) {
-    slots.push(current);
-    current = addMinutes(current, durationMinutes);
+function buildDates(start_date, end_date) {
+  const dates = [];
+  let current = new Date(start_date);
+  const end = new Date(end_date);
+
+  while (current <= end) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
   }
 
-  return slots;
+  return dates;
 }
 
-function dateDiffInDays(d1, d2) {
-  const diff = d2 - d1;
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
+/* ----------------------------------------------------- */
+/* PREVIEW availability generation */
+/* ----------------------------------------------------- */
 
-/* =========================
-   PREVIEW
-========================= */
-
-router.post("/preview", requireBackofficeAuth, async (req, res) => {
+router.post('/preview', async (req, res) => {
   const {
     service_id,
     start_date,
     end_date,
-    days_of_week,
     start_time,
     end_time,
-    capacity_to_add
+    slot_duration,
+    days_of_week
   } = req.body;
 
-  if (!service_id || !start_date || !end_date || !days_of_week || !start_time || !end_time || !capacity_to_add) {
-    return res.status(400).json({ error: "Faltan parámetros obligatorios." });
+  /* ---------- Validaciones ---------- */
+
+  if (
+    !service_id ||
+    !start_date ||
+    !end_date ||
+    !start_time ||
+    !end_time ||
+    !slot_duration ||
+    !days_of_week
+  ) {
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const start = parseDate(start_date);
-  const end = parseDate(end_date);
-
-  if (dateDiffInDays(start, end) > MAX_RANGE_DAYS) {
-    return res.status(400).json({ error: "El rango no puede superar 1 año." });
+  if (!Array.isArray(days_of_week)) {
+    return res.status(400).json({ error: 'days_of_week must be an array' });
   }
 
-  if (start > end) {
-    return res.status(400).json({ error: "start_date debe ser menor a end_date." });
+  if (days_of_week.some(d => d < 0 || d > 6)) {
+    return res.status(400).json({ error: 'days_of_week values must be 0-6' });
+  }
+
+  if (timeToMinutes(start_time) >= timeToMinutes(end_time)) {
+    return res.status(400).json({
+      error: 'start_time must be before end_time'
+    });
   }
 
   const client = await pool.connect();
 
   try {
-    const serviceRes = await client.query(
-      "SELECT duration_minutes FROM services WHERE id = $1",
-      [service_id]
-    );
 
-    if (serviceRes.rows.length === 0) {
-      return res.status(404).json({ error: "Servicio no encontrado." });
-    }
+    const dates = buildDates(start_date, end_date);
 
-    const duration = serviceRes.rows[0].duration_minutes;
+    const preview = [];
 
-    const allSlots = [];
-    let cursor = new Date(start);
+    for (const date of dates) {
 
-    while (cursor <= end) {
-      const dayOfWeek = cursor.getDay(); // 0-6
+      const day = date.getDay();
 
-      if (days_of_week.includes(dayOfWeek)) {
-        const slots = getSlotsForDay(start_time, end_time, duration);
+      if (!days_of_week.includes(day)) continue;
 
-        slots.forEach(timeSlot => {
-          allSlots.push({
-            date: formatDate(cursor),
-            time_slot: timeSlot
-          });
+      let time = timeToMinutes(start_time);
+      const end = timeToMinutes(end_time);
+
+      while (time + slot_duration <= end) {
+
+        const hour = String(Math.floor(time / 60)).padStart(2, '0');
+        const minute = String(time % 60).padStart(2, '0');
+        const slot = `${hour}:${minute}`;
+
+        const formattedDate = formatDate(date);
+
+        const existing = await client.query(
+          `
+          SELECT capacity
+          FROM service_availability
+          WHERE service_id = $1
+          AND date = $2
+          AND time_slot = $3
+          `,
+          [service_id, formattedDate, slot]
+        );
+
+        preview.push({
+          date: formattedDate,
+          time_slot: slot,
+          exists: existing.rowCount > 0,
+          current_capacity: existing.rows[0]?.capacity || 0
         });
-      }
 
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    let newSlots = 0;
-    let existingSlots = 0;
-    const existingDetails = [];
-
-    for (const slot of allSlots) {
-      const existing = await client.query(
-        `SELECT capacity
-         FROM service_availability
-         WHERE service_id = $1
-           AND date = $2
-           AND time_slot = $3`,
-        [service_id, slot.date, slot.time_slot]
-      );
-
-      if (existing.rows.length > 0) {
-        existingSlots++;
-        existingDetails.push({
-          date: slot.date,
-          time_slot: slot.time_slot,
-          current_capacity: existing.rows[0].capacity,
-          new_capacity: existing.rows[0].capacity + capacity_to_add
-        });
-      } else {
-        newSlots++;
+        time += slot_duration;
       }
     }
 
-    return res.json({
-      summary: {
-        total_slots: allSlots.length,
-        new_slots: newSlots,
-        existing_slots: existingSlots
-      },
-      existing_conflicts: existingDetails
+    res.json({
+      total_slots: preview.length,
+      preview_slots: preview
     });
 
   } catch (err) {
+
     console.error(err);
-    return res.status(500).json({ error: "Error en preview." });
+    res.status(500).json({ error: 'Preview generation failed' });
+
   } finally {
+
     client.release();
+
   }
 });
 
-/* =========================
-   GENERATE (confirmado)
-========================= */
+/* ----------------------------------------------------- */
+/* GENERATE availability */
+/* ----------------------------------------------------- */
 
-router.post("/generate", requireBackofficeAuth, async (req, res) => {
+router.post('/generate', async (req, res) => {
+
   const {
     service_id,
     start_date,
     end_date,
-    days_of_week,
     start_time,
     end_time,
+    slot_duration,
     capacity_to_add,
-    confirmed
+    days_of_week
   } = req.body;
 
-  if (!confirmed) {
-    return res.status(400).json({ error: "Debe confirmar la operación." });
+  /* ---------- Validaciones ---------- */
+
+  if (
+    !service_id ||
+    !start_date ||
+    !end_date ||
+    !start_time ||
+    !end_time ||
+    !slot_duration ||
+    !capacity_to_add ||
+    !days_of_week
+  ) {
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const start = parseDate(start_date);
-  const end = parseDate(end_date);
+  if (capacity_to_add <= 0) {
+    return res.status(400).json({
+      error: 'capacity_to_add must be greater than 0'
+    });
+  }
 
-  if (dateDiffInDays(start, end) > MAX_RANGE_DAYS) {
-    return res.status(400).json({ error: "El rango no puede superar 1 año." });
+  if (!Array.isArray(days_of_week)) {
+    return res.status(400).json({ error: 'days_of_week must be an array' });
+  }
+
+  if (days_of_week.some(d => d < 0 || d > 6)) {
+    return res.status(400).json({ error: 'days_of_week values must be 0-6' });
+  }
+
+  if (timeToMinutes(start_time) >= timeToMinutes(end_time)) {
+    return res.status(400).json({
+      error: 'start_time must be before end_time'
+    });
   }
 
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
 
-    const serviceRes = await client.query(
-      "SELECT duration_minutes FROM services WHERE id = $1",
-      [service_id]
-    );
+    await client.query('BEGIN');
 
-    if (serviceRes.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Servicio no encontrado." });
-    }
+    const dates = buildDates(start_date, end_date);
 
-    const duration = serviceRes.rows[0].duration_minutes;
+    let inserted = 0;
+    let updated = 0;
 
-    let cursor = new Date(start);
-    let affected = 0;
+    for (const date of dates) {
 
-    while (cursor <= end) {
-      const dayOfWeek = cursor.getDay();
+      const day = date.getDay();
 
-      if (days_of_week.includes(dayOfWeek)) {
-        const slots = getSlotsForDay(start_time, end_time, duration);
+      if (!days_of_week.includes(day)) continue;
 
-        for (const timeSlot of slots) {
-          await client.query(
-            `
-            INSERT INTO service_availability (service_id, date, time_slot, capacity)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (service_id, date, time_slot)
-            DO UPDATE
-            SET capacity = service_availability.capacity + EXCLUDED.capacity
-            `,
-            [service_id, formatDate(cursor), timeSlot, capacity_to_add]
-          );
-          affected++;
+      let time = timeToMinutes(start_time);
+      const end = timeToMinutes(end_time);
+
+      while (time + slot_duration <= end) {
+
+        const hour = String(Math.floor(time / 60)).padStart(2, '0');
+        const minute = String(time % 60).padStart(2, '0');
+        const slot = `${hour}:${minute}`;
+
+        const formattedDate = formatDate(date);
+
+        const result = await client.query(
+          `
+          INSERT INTO service_availability
+          (service_id, date, time_slot, capacity)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (service_id, date, time_slot)
+          DO UPDATE
+          SET capacity = service_availability.capacity + EXCLUDED.capacity
+          RETURNING xmax
+          `,
+          [service_id, formattedDate, slot, capacity_to_add]
+        );
+
+        if (result.rows[0].xmax === '0') {
+          inserted++;
+        } else {
+          updated++;
         }
+
+        time += slot_duration;
+
       }
 
-      cursor.setDate(cursor.getDate() + 1);
     }
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
-    return res.json({
-      success: true,
-      total_slots_processed: affected
+    res.json({
+      message: 'Availability generated successfully',
+      inserted,
+      updated
     });
 
   } catch (err) {
-    await client.query("ROLLBACK");
+
+    await client.query('ROLLBACK');
     console.error(err);
-    return res.status(500).json({ error: "Error generando availability." });
+
+    res.status(500).json({
+      error: 'Availability generation failed'
+    });
+
   } finally {
+
     client.release();
+
   }
+
+});
+
+/* ----------------------------------------------------- */
+/* GET availability */
+/* ----------------------------------------------------- */
+
+router.get("/", async (req, res) => {
+
+  const {
+    service_id,
+    start_date,
+    end_date,
+    limit = 100,
+    offset = 0
+  } = req.query;
+
+  const client = await pool.connect();
+
+  try {
+
+    const conditions = [];
+    const params = [];
+
+    if (service_id) {
+      params.push(service_id);
+      conditions.push(`sa.service_id = $${params.length}`);
+    }
+
+    if (start_date) {
+      params.push(start_date);
+      conditions.push(`sa.date >= $${params.length}`);
+    }
+
+    if (end_date) {
+      params.push(end_date);
+      conditions.push(`sa.date <= $${params.length}`);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
+
+    params.push(limit);
+    params.push(offset);
+
+    const query = `
+      SELECT
+        sa.service_id,
+        s.name AS service_name,
+        sa.date,
+        sa.time_slot,
+        sa.capacity,
+
+        COUNT(b.id) FILTER (WHERE b.status != 'cancelled') AS booked
+
+      FROM service_availability sa
+
+      JOIN services s
+        ON s.id = sa.service_id
+
+      LEFT JOIN bookings b
+        ON b.service_id = sa.service_id
+        AND b.date = sa.date
+        AND b.time_slot = sa.time_slot
+
+      ${whereClause}
+
+      GROUP BY
+        sa.service_id,
+        s.name,
+        sa.date,
+        sa.time_slot,
+        sa.capacity
+
+      ORDER BY
+        sa.date ASC,
+        sa.time_slot ASC
+
+      LIMIT $${params.length - 1}
+      OFFSET $${params.length}
+    `;
+
+    const result = await client.query(query, params);
+
+    res.json(result.rows);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Error obteniendo availability"
+    });
+
+  } finally {
+
+    client.release();
+
+  }
+
 });
 
 export default router;
