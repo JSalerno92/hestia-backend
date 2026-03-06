@@ -26,7 +26,9 @@ export function createApp() {
       'http://192.168.1.40:5173',
       'https://dainty-genie-f95ae5.netlify.app',
       'https://casahestia.com.ar',
-      'https://www.casahestia.com.ar'
+      'https://www.casahestia.com.ar',
+      'https://backoffice.casahestia.com.ar',
+      'https://www.backoffice.casahestia.com.ar'
     ],
     credentials: true
   }));
