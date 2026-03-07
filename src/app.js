@@ -15,6 +15,7 @@ import adminServices from './routes/admin.service.routes.js';
 import adminProviders from './routes/admin.providers.routes.js';
 import adminAvailability from './routes/admin.availability.routes.js';
 import { requireBackofficeAuth } from './middleware/authBackoffice.js';
+import adminWelcomeMessage from './routes/admin.welcome-message.routes.js';
 
 export function createApp() {
   const app = express();
@@ -36,7 +37,7 @@ export function createApp() {
   app.use(morgan('dev'));
 
   app.use('/api/bookings', bookingsRoutes);
-  app.use('/api', publicRoutes);
+  app.use('/api/welcome-message', publicRoutes);
   app.use('/api/backoffice', backofficeAuth);
   app.use('/api/forms', formsRoutes(pool));
   app.use('/api/service-requests', serviceRequestsRoutes(pool));
@@ -48,6 +49,7 @@ export function createApp() {
   app.use('/api/admin/services', requireBackofficeAuth, adminServices);
   app.use('/api/admin/providers', requireBackofficeAuth, adminProviders);
   app.use('/api/admin/availability', requireBackofficeAuth, adminAvailability);
+  app.use('/api/admin/welcome-messages', requireBackofficeAuth, adminWelcomeMessage);
 
   app.get('/health', (_, res) => {
     res.json({ status: 'ok' });
