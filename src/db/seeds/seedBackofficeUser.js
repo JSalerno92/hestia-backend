@@ -1,22 +1,37 @@
 import bcrypt from 'bcrypt';
 
-export async function seedBackofficeUser(pool, config) {
+export async function seedBackofficeUsers(pool) {
 
-  if (!config.adminEmail || !config.adminPassword) {
-    throw new Error(
-      'ADMIN_EMAIL y ADMIN_PASSWORD deben estar definidos en el .env'
+  const users = [
+    {
+      email: 'aldu@hestia',
+      password: 'ChangeMe123!',
+      role: 'admin'
+    },
+    {
+      email: 'cata@hestia',
+      password: 'ChangeMe123!',
+      role: 'admin'
+    }
+  ];
+
+  for (const user of users) {
+
+    const passwordHash = await bcrypt.hash(user.password, 10);
+
+    await pool.query(
+      `
+      INSERT INTO backoffice_users (email, password_hash, role)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (email) DO NOTHING
+      `,
+      [
+        user.email,
+        passwordHash,
+        user.role
+      ]
     );
+
   }
-
-  const passwordHash = await bcrypt.hash(config.adminPassword, 10);
-
-  await pool.query(
-    `
-    INSERT INTO admin_users (email, password_hash)
-    VALUES ($1, $2)
-    ON CONFLICT (email) DO NOTHING
-    `,
-    [config.adminEmail, passwordHash]
-  );
 
 }
