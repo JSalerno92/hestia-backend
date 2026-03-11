@@ -40,7 +40,7 @@ export async function seedServices(pool) {
     {
       code: 'cleaning_premium',
       name: 'Premium',
-      description: '2 persona | 6hs | casas grandes/ limpieza profunda',
+      description: '2 personas | 6hs | casas grandes/ limpieza profunda',
       info: `Ideal para casas grandes o limpiezas profundas.
               Incluye limpieza de:
               •	Baños y cocina en profundidad.
