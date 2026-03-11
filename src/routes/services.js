@@ -99,6 +99,7 @@ export default function servicesRoutes(pool) {
           AND sa.date >= $2
           AND sa.date <= $3
           AND sa.active = true
+          AND (sa.date + sa.time_slot) >= (NOW() + INTERVAL '30 hours')
         GROUP BY sa.id, sa.date, sa.time_slot, sa.capacity
         HAVING (sa.capacity - COUNT(b.id)) > 0
         ORDER BY sa.date ASC, sa.time_slot ASC
